@@ -129,49 +129,50 @@ data_augmentation = keras.Sequential([
 # our model, input again, still in an image shape
 inputs = keras.Input(shape=(32, 32, 3, ), name='img')
 augmented = data_augmentation(inputs)
-# run pairs of conv layers, all 3s3 kernels
-x = layers.Conv2D(filters=16, kernel_size=(3,3), padding='same', activation='relu')(augmented)
-x = layers.Conv2D(filters=16, kernel_size=(3,3), padding='same', activation='relu')(x)
-# batch normalisation, before the non-linearity
-x = layers.BatchNormalization()(x)
-# spatial dropout, this will drop whole kernels, i.e. 20% of our 3x3 filters will be dropped out rather
-# than dropping out 20% of the invidual pixels
-x = layers.SpatialDropout2D(0.2)(x)
-# max pooling, 2x2, which will downsample the image
+
+# 3x3 conv block, we have two conv layers, and a max-pooling. The conv layers have identical parameters
+# and are simply separated by an activation, in our case, relu
+x = layers.Conv2D(filters=8, kernel_size=(3, 3), padding='same', activation=None)(augmented)
+x = layers.Activation('relu')(x)
+x = layers.Conv2D(filters=8, kernel_size=(3, 3), padding='same', activation=None)(x)
+x = layers.Activation('relu')(x)
 x = layers.MaxPool2D(pool_size=(2, 2))(x)
-# rinse and repeat with 2D convs, batch norm, dropout and max pool
-x = layers.Conv2D(filters=32, kernel_size=(3,3), padding='same', activation='relu')(x)
-x = layers.Conv2D(filters=32, kernel_size=(3,3), padding='same', activation='relu')(x)
-x = layers.BatchNormalization()(x)
-x = layers.SpatialDropout2D(0.2)(x)
+
+# 3x3 conv block, increase filters, same structure as above, but now with 16 filters
+x = layers.Conv2D(filters=16, kernel_size=(3, 3), padding='same', activation=None)(x)
+x = layers.Activation('relu')(x)
+x = layers.Conv2D(filters=16, kernel_size=(3, 3), padding='same', activation=None)(x)
+x = layers.Activation('relu')(x)
 x = layers.MaxPool2D(pool_size=(2, 2))(x)
-# final conv2d, batch norm and spatial dropout
-x = layers.Conv2D(filters=64, kernel_size=(3,3), padding='same', activation='relu')(x)
-x = layers.Conv2D(filters=64, kernel_size=(3,3), padding='same', activation='relu')(x)
-x = layers.BatchNormalization()(x)
-x = layers.SpatialDropout2D(0.2)(x)
+
+# 3x3 conv block, further increase filters to 32, again the structure is the same
+x = layers.Conv2D(filters=32, kernel_size=(3, 3), padding='same', activation=None)(x)
+x = layers.Activation('relu')(x)
+x = layers.Conv2D(filters=32, kernel_size=(3, 3), padding='same', activation=None)(x)
+x = layers.Activation('relu')(x)
+x = layers.MaxPool2D(pool_size=(2, 2))(x)
+
 # flatten layer
 x = layers.Flatten()(x)
-# we'll use a couple of dense layers here, mainly so that we can show what another dropout layer looks like 
-# in the middle
-x = layers.Dense(256, activation='relu')(x)
-x = layers.Dropout(0.5)(x)
-x = layers.Dense(64, activation='relu')(x)
-# the output
-outputs = layers.Dense(10, activation=None)(x)
+
+# dense layer, 512 neurons
+x = layers.Dense(512, activation='relu')(x)
+
+# the output, 10 neurons for 10 classes, and a softmax activation
+outputs = layers.Dense(10, activation='softmax')(x)
 
 # build the model, and print a summary
-model_cnn = keras.Model(inputs=inputs, outputs=outputs, name='DCNN_model')
-model_cnn.summary()
+model_vgg = keras.Model(inputs=inputs, outputs=outputs, name='vgg_for_cifar10')
+model_vgg.summary()
 
-model_cnn.compile(loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+model_vgg.compile(loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
               optimizer=keras.optimizers.Adam(),
               metrics=['accuracy'])
-history = model_cnn.fit(train_X, train_Y,
-                        batch_size=128,
+history = model_vgg.fit(train_X, train_Y,
+                        batch_size=64,
                         epochs=50,
                         validation_split=0.2)
-eval_model(model_cnn, test_X, test_Y)
+eval_model(model_vgg, test_X, test_Y)
 
 fig = plt.figure(figsize=[20, 6])
 ax = fig.add_subplot(1, 2, 1)
@@ -185,11 +186,3 @@ ax.plot(history.history['val_accuracy'], label="Validation Accuracy")
 ax.legend()
 
 plt.show()
-# Check Versions
-#print(sklearn.__version__)
-#print(tf.__version__)
-
-#View Images
-#plot_images(train_X,train_Y)
-#plt.show()
-
